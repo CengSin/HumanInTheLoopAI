@@ -20,6 +20,9 @@ func main() {
 	// Worker 负责监听 Task Queue，并执行具体的 Workflow 和 Activity 代码
 	we := worker.New(c, HumanintheLoopAI.TaskQueueName, worker.Options{})
 	we.RegisterWorkflow(HumanintheLoopAI.NewsAgentWorkflow)
+	we.RegisterWorkflow(HumanintheLoopAI.ManagerAgentWorkflow)
+	we.RegisterWorkflow(HumanintheLoopAI.ResearcherAgentWorkflow)
+	we.RegisterWorkflow(HumanintheLoopAI.WriterAgentWorkflow)
 	we.RegisterActivity(HumanintheLoopAI.FetchNews)
 	we.RegisterActivity(HumanintheLoopAI.AISummarize)
 	we.RegisterActivity(HumanintheLoopAI.SendEmail)

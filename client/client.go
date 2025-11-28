@@ -34,4 +34,20 @@ func main() {
 		log.Fatalln("无法获取 Workflow 结果", err)
 	}
 	fmt.Println("Workflow 结果:", result)
+
+	managerWorkflowID := "manager-agent-workflow" + uuid.New().String()
+	managerOptions := client.StartWorkflowOptions{
+		ID:        managerWorkflowID,
+		TaskQueue: HumanintheLoopAI.TaskQueueName,
+	}
+	managerWe, err := c.ExecuteWorkflow(context.Background(), managerOptions, HumanintheLoopAI.ManagerAgentWorkflow, "anything")
+	if err != nil {
+		log.Fatalln("无法执行 ManagerAgentWorkflow", err)
+	}
+
+	var content string
+	if err = managerWe.Get(context.Background(), &content); err != nil {
+		log.Fatalln("无法获取 ManagerAgentWorkflow 结果", err)
+	}
+	fmt.Println("ManagerAgentWorkflow 结果", content)
 }

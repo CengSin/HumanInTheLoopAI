@@ -1,6 +1,7 @@
 package HumanintheLoopAI
 
 import (
+	"github.com/google/uuid"
 	"go.temporal.io/sdk/workflow"
 	"time"
 )
@@ -92,4 +93,72 @@ func NewsAgentWorkflow(ctx workflow.Context, topic string) (string, error) {
 
 	logger.Info("Workflow 完成", "emailStatus", emailStatus)
 	return summary, nil
+}
+
+// --- Agent B: 研究员 ---
+func ResearcherAgentWorkflow(ctx workflow.Context, req ResearchRequest) (*ResearchResult, error) {
+	logger := workflow.GetLogger(ctx)
+	logger.Info("Researcher Agent 启动", "topic", req.Topic)
+
+	// 这里可以调用 Activity 去查 Qdrant (为了演示我们直接模拟)
+	// 真实场景：Call LLM to plan search -> Tool use (RAG) -> Summarize
+
+	workflow.Sleep(ctx, 2*time.Second) // 模拟思考
+	return &ResearchResult{
+		Facts: []string{
+			"Go 语言由 Google 开发。",
+			"Temporal 是 Go 语言编写的。",
+		},
+		Sources: []string{"wiki", "qdrant"},
+	}, nil
+}
+
+// --- Agent C: 作家 ---
+func WriterAgentWorkflow(ctx workflow.Context, req WriteRequest) (*WriteResult, error) {
+	// 真实场景：调用 LLM 将事实转化为文章
+	return &WriteResult{
+		Content: "<h1>" + req.Topic + " Report</h1><p>Here is what we found...</p>",
+	}, nil
+}
+
+// --- Agent A: 经理 ---
+func ManagerAgentWorkflow(ctx workflow.Context, userGoal string) (string, error) {
+	logger := workflow.GetLogger(ctx)
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: time.Minute,
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// 1. 经理思考 (LLM)：把 userGoal 拆解为调研任务
+	// 假设 LLM 决定需要调研 "Go Language"
+	topicToResearch := "Go Language"
+
+	// 2. A2A 调用：委派给 Researcher Agent
+	// ChildWorkflowOptions 用于配置子 Agent 的行为（比如父挂了子要不要挂）
+	cwo := workflow.ChildWorkflowOptions{
+		WorkflowID: "research-agent-" + uuid.New().String(),
+	}
+	ctx = workflow.WithChildOptions(ctx, cwo)
+	logger.Info("委派任务给 Researcher Agent...")
+	var researchResult ResearchResult
+	if err := workflow.ExecuteChildWorkflow(ctx, ResearcherAgentWorkflow, ResearchRequest{
+		Topic: topicToResearch,
+		Depth: "deep",
+	}).Get(ctx, &researchResult); err != nil {
+		return "", err
+	}
+
+	// 3. A2A 调用：委派给 Writer Agent
+	// 拿到 Research 的结果，传给 Writer
+	logger.Info("委派任务给 Writer Agent...")
+	var writerResult WriteResult
+	if err := workflow.ExecuteChildWorkflow(ctx, WriterAgentWorkflow, WriteRequest{
+		Topic: topicToResearch,
+		Facts: researchResult.Facts,
+		Tone:  "formal",
+	}).Get(ctx, &writerResult); err != nil {
+		return "", err
+	}
+
+	return writerResult.Content, nil
 }
