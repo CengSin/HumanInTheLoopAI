@@ -5,6 +5,7 @@
 ## 分支说明
 
 - main 分支：包含完整的RAG功能实现，使用Qdrant进行向量存储和检索，Temporal进行数据处理和保存。
+- [tool_use](https://github.com/CengSin/HumanInTheLoopAI/tree/tool_use) 分支：包含了llms使用tools以及mcp的示例代码
 
 ## 目录结构
 
